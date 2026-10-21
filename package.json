@@ -2,26 +2,70 @@
   "name": "tuktrail",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "typecheck": "next typegen && tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "e2e": "playwright test",
+    "screenshots": "tsx scripts/screenshots.ts",
+    "a11y": "tsx scripts/audit.ts",
+    "services:up": "docker compose up -d",
+    "services:down": "docker compose down",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx --env-file=.env src/server/db/migrate.ts",
+    "db:seed": "tsx --env-file=.env src/server/seed/index.ts",
+    "db:reset": "tsx --env-file=.env src/server/db/reset.ts && pnpm db:migrate && pnpm db:seed",
+    "db:studio": "drizzle-kit studio",
+    "storage:init": "tsx --env-file=.env src/server/storage/init.ts",
+    "contrast": "tsx scripts/contrast.ts",
+    "bootstrap": "pnpm services:up && pnpm storage:init && pnpm db:migrate && pnpm db:seed"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1154.0",
+    "@aws-sdk/s3-request-presigner": "3.1154.0",
+    "better-auth": "1.7.12",
+    "drizzle-orm": "0.45.4",
+    "exifr": "7.1.3",
+    "lucide-react": "1.61.0",
     "next": "16.4.2",
-    "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "next-intl": "4.14.9",
+    "nodemailer": "10.1.7",
+    "pg": "8.23.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "sharp": "0.35.5",
+    "zod": "4.6.7"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
+    "@playwright/test": "1.64.1",
     "@tailwindcss/turbopack": "^4",
-    "@types/node": "^20",
+    "@types/node": "^24.19.2",
+    "@types/nodemailer": "^8.0.2",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "eslint": "^9",
+    "drizzle-kit": "0.31.11",
+    "eslint": "^10.13.0",
     "eslint-config-next": "16.4.2",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "3.9.10",
+    "prettier-plugin-tailwindcss": "^0.8.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "vitest": "5.0.5"
   },
-  "packageManager": "pnpm@10.26.2"
+  "packageManager": "pnpm@10.26.2",
+  "engines": {
+    "node": ">=24"
+  }
 }

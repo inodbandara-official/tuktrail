@@ -1,0 +1,53 @@
+# Local development services. Production uses managed Postgres (with PostGIS),
+# Cloudflare R2 or AWS S3, and any SMTP provider — configured via .env only.
+name: tuktrail
+
+services:
+  db:
+    image: postgis/postgis:18-3.6
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tuktrail}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tuktrail}
+      POSTGRES_DB: ${POSTGRES_DB:-tuktrail}
+    ports:
+      - "${POSTGRES_HOST_PORT:-5544}:5432"
+    volumes:
+      - db-data:/var/lib/postgresql
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tuktrail} -d ${POSTGRES_DB:-tuktrail}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # S3-compatible object storage. MinIO no longer publishes community images,
+  # so RustFS stands in locally. App code only speaks the S3 API.
+  storage:
+    image: rustfs/rustfs:1.0.3
+    restart: unless-stopped
+    command: ["/data"]
+    environment:
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY_ID:-tuktrail-dev}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_ACCESS_KEY:-tuktrail-dev-secret}
+      RUSTFS_ADDRESS: ":9000"
+      RUSTFS_CONSOLE_ADDRESS: ":9001"
+      RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_OBS_LOGGER_LEVEL: error
+    ports:
+      - "${STORAGE_HOST_PORT:-9000}:9000"
+      - "${STORAGE_CONSOLE_HOST_PORT:-9001}:9001"
+    volumes:
+      - storage-data:/data
+
+  # Catches magic-link emails locally. UI at http://localhost:8025
+  mail:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "${SMTP_HOST_PORT:-1025}:1025"
+      - "${MAILPIT_UI_HOST_PORT:-8025}:8025"
+
+volumes:
+  db-data:
+  storage-data:

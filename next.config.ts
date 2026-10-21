@@ -1,9 +1,12 @@
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   cacheComponents: true,
   partialPrefetching: true,
+  poweredByHeader: false,
+  // Keeps screenshots clean; use the browser devtools instead.
+  devIndicators: false,
   turbopack: {
     rules: {
       "*.css": {
@@ -12,6 +15,9 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  // sharp is a native module used by the image pipeline.
+  serverExternalPackages: ["sharp"],
 };
 
-export default nextConfig;
+const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
+export default withNextIntl(nextConfig);
