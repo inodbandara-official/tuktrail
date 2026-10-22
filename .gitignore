@@ -46,3 +46,6 @@ next-env.d.ts
 /playwright-report/
 /playwright/.cache/
 /screenshots/
+
+# copied from node_modules by scripts/sync-map-worker.mjs
+/public/map/maplibre-gl-worker.mjs

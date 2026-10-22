@@ -43,6 +43,7 @@ const eslintConfig = defineConfig([
     "screenshots/**",
     "playwright-report/**",
     "test-results/**",
+    "public/map/**",
   ]),
 ]);
 

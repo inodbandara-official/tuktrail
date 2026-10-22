@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getTranslations } from "next-intl/server";
 import { routing } from "@/i18n/routing";
+import { Providers } from "@/components/providers/Providers";
 import { InlineScript } from "@/components/theme/InlineScript";
 import { THEME_INIT_SCRIPT } from "@/components/theme/theme";
 import { bodyFont, headingFont } from "../fonts";
@@ -47,7 +48,9 @@ export default async function LocaleLayout({ children }: LayoutProps<"/[locale]"
         >
           {t("skipToContent")}
         </a>
-        <NextIntlClientProvider>{children}</NextIntlClientProvider>
+        <NextIntlClientProvider>
+          <Providers>{children}</Providers>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

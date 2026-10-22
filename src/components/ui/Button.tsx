@@ -18,6 +18,17 @@ const sizes: Record<Size, string> = {
   lg: "min-h-13 px-6 text-lg",
 };
 
+/** Button styling for other elements (e.g. next-intl <Link>). */
+export function buttonClasses(variant: Variant = "primary", size: Size = "md", className?: string) {
+  return cx(
+    base,
+    variants[variant],
+    variant !== "quiet" && sizes[size],
+    variant === "quiet" && "min-h-11",
+    className,
+  );
+}
+
 interface CommonProps {
   variant?: Variant;
   size?: Size;

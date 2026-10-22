@@ -2,11 +2,15 @@
 //  - axe-core (WCAG 2.2 A/AA rules)
 //  - tap targets smaller than 44×44 px (inline links inside running text excluded)
 //  - keyboard walk: every Tab stop must show a visible focus indicator
-// Usage: pnpm a11y / /design      (app must be running at BASE_URL)
+// Usage: pnpm a11y [--choice manual] / /design      (app must be running at BASE_URL)
 import AxeBuilder from "@axe-core/playwright";
 import { chromium, type Page } from "@playwright/test";
 
-const routes = process.argv.slice(2).filter((a) => a.startsWith("/"));
+const argv = process.argv.slice(2);
+const routes = argv.filter((a) => a.startsWith("/"));
+// --choice manual|gps presets the remembered location choice (skips the first-visit explainer).
+const choiceIdx = argv.indexOf("--choice");
+const choice = choiceIdx >= 0 ? argv[choiceIdx + 1] : undefined;
 if (routes.length === 0) routes.push("/");
 const BASE_URL = process.env.BASE_URL ?? "http://localhost:3000";
 
@@ -26,9 +30,20 @@ async function smallTapTargets(page: Page) {
       const style = getComputedStyle(el);
       if (style.visibility === "hidden" || style.display === "none") continue;
       // Inline links inside paragraphs are exempt (WCAG 2.5.8 inline exception).
-      if (el.tagName === "A" && style.display === "inline" && el.closest("p, li")) continue;
+      if (
+        el.tagName === "A" &&
+        style.display === "inline" &&
+        el.closest("p, li, .maplibregl-ctrl-attrib-inner")
+      )
+        continue;
       // A small control inside a larger labelled hit area (e.g. switch + label) counts the wrapper.
-      const box = (el.closest("label") ?? el).getBoundingClientRect();
+      // Stretched controls (absolute ::after covering a card) are hit-tested as the card.
+      const stretched = getComputedStyle(el, "::after").position === "absolute";
+      const box = (
+        (stretched ? el.closest("article") : null) ??
+        el.closest("label") ??
+        el
+      ).getBoundingClientRect();
       const r = el.getBoundingClientRect();
       if (r.width === 0 || r.height === 0) continue;
       const w = Math.max(r.width, box.width);
@@ -51,7 +66,12 @@ async function focusWalk(page: Page, maxStops = 60) {
       const el = document.activeElement as HTMLElement | null;
       if (!el || el === document.body) return null;
       const s = getComputedStyle(el);
-      const outlined = s.outlineStyle !== "none" && parseFloat(s.outlineWidth) >= 2;
+      // Some controls draw their ring on a wrapping <label> via :has(:focus-visible).
+      const label = el.closest("label");
+      const ls = label ? getComputedStyle(label) : null;
+      const outlined =
+        (s.outlineStyle !== "none" && parseFloat(s.outlineWidth) >= 2) ||
+        (!!ls && ls.outlineStyle !== "none" && parseFloat(ls.outlineWidth) >= 2);
       const ringed = s.boxShadow !== "none";
       // Stretched-link cards draw focus on a sibling overlay via :has(:focus-visible).
       const viaCard =
@@ -72,9 +92,13 @@ try {
   for (const [vpName, vp] of Object.entries(VIEWPORTS)) {
     for (const scheme of ["light", "dark"] as const) {
       const context = await browser.newContext({ ...vp, colorScheme: scheme });
+      if (choice)
+        await context.addInitScript((c) => localStorage.setItem("tuktrail.locationChoice", c), choice);
       const page = await context.newPage();
       for (const route of routes) {
-        await page.goto(`${BASE_URL}${route}`, { waitUntil: "networkidle" });
+        await page.goto(`${BASE_URL}${route}`, { waitUntil: "load" });
+        await page.waitForLoadState("networkidle", { timeout: 12_000 }).catch(() => undefined);
+        await page.waitForTimeout(800);
         const tag = `${route} [${vpName}/${scheme}]`;
 
         const axe = await new AxeBuilder({ page })

@@ -26,7 +26,8 @@ Location-based tourist guide for Sri Lanka. Next.js web app now; a React Native 
 | Email      | Nodemailer + SMTP. Local: Mailpit (UI :8025)                                                   |
 | Images     | `sharp` (EXIF strip, AVIF/WebP 400/800/1600 + LQIP), `exifr` (GPS read)                        |
 | i18n       | next-intl 4.14, `localePrefix: "as-needed"`, English only (si/ta later)                        |
-| Maps       | Google Maps JS via `@vis.gl/react-google-maps` + marker clustering — Phase 2                   |
+| Maps       | MapLibre GL JS 6.15 + OpenFreeMap vector tiles (no key) via `@vis.gl/react-maplibre` 8.1       |
+| Client     | TanStack Query 5 (API data), nuqs 2 (URL state), Zustand 5 (location + map/list selection)     |
 | PWA        | Serwist (Turbopack integration) — Phase 6                                                      |
 | Tests      | Vitest 5 (unit + integration), Playwright 1.64 (e2e, screenshots, a11y audit with axe-core)    |
 
@@ -45,8 +46,9 @@ pnpm typecheck        # next typegen && tsc --noEmit
 pnpm lint | format    # ESLint flat config + Prettier (tailwind plugin)
 pnpm test             # Vitest unit + integration (integration needs compose db)
 pnpm e2e              # Playwright end-to-end
-pnpm screenshots --phase N / /design [--click "Emergency"] [--viewport-only]
-pnpm a11y / /design   # axe + 44px tap targets + keyboard focus visibility
+pnpm screenshots --phase N [--click "Name"]… [--geo lat,lng|denied] [--choice gps|manual] [--wait ms] [--name x] [--viewport-only] / "/?town=ella"
+pnpm a11y [--choice manual] / /design   # axe + 44px tap targets + keyboard focus visibility
+pnpm map:styles       # rebuild public/map/tuktrail-{light,dark}.json from OpenFreeMap positron + our palette
 pnpm contrast         # print WCAG ratios for all token pairs
 ```
 
@@ -59,8 +61,9 @@ src/app/[locale]/…        pages (root layout is [locale]/layout.tsx)
 src/app/api/v1/…          versioned REST route handlers — thin: parse → service → JSON
 src/app/api/auth/…        Better Auth handler (library-owned, unversioned)
 src/components/ui         primitives (Button, Chip, Badge, KmPost, Switch, Picture, StateMessage…)
-src/components/<domain>   places/, emergency/, theme/, shell/, map/ …
-src/features/<feature>    client hooks + composition (Phase 2+)
+src/components/<domain>   places/, emergency/, theme/, shell/, providers/
+src/components/map        provider-agnostic map: PlacesMap (entry), types.ts (contract), MapPin, geo; maplibre/ = implementation
+src/features/<feature>    client hooks + composition: nearby/ (screen, list, filters, URL params, queries, selection), location/ (store, explainer, picker), api/ (fetch client)
 src/server/services       business logic. Framework-agnostic: no next/*, react, cookies, Request (lint-enforced)
 src/server/db             Drizzle client, schema/, geography custom type, migrate/reset scripts
 src/server/next           Next-only glue: createCtx(), apiHandler()
@@ -77,6 +80,24 @@ scripts/                  screenshots, a11y audit, contrast
 - Services take `Ctx { db, storage, now, actor }` and return DTOs from `src/shared/schemas`. Throw `AppError(code, msg)`.
 - Route handlers: wrap with `apiHandler()` → uniform `{ error: { code, message, details? } }`, `connection()` for request-time rendering, never log query strings.
 - Public DTOs never include `capture_lat/lng`, uploader or moderation fields (`toImageDto`, unit-tested).
+
+### API (implemented so far)
+
+| Endpoint                                                                    | Notes                                                                                                                   |
+| --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/v1/health`                                                        | DB + PostGIS check                                                                                                      |
+| `GET /api/v1/places/nearby?lat&lng&radius_km&category&month&q&cursor&limit` | `ST_DWithin` + `ST_Distance`, keyset cursor `(distance,id)` bound to a query fingerprint; `total` on page 1; `no-store` |
+| `GET /api/v1/places/points?…same filters`                                   | lightweight markers (≤500) for map clustering; `no-store`                                                               |
+| `GET /api/v1/towns?q` / `GET /api/v1/towns/:slug`                           | manual location fallback (trigram search, hubs when empty)                                                              |
+
+`category` accepts CSV or repeated params. Coordinates are rounded to 3 dp in the schema itself.
+
+### Nearby screen
+
+- Origin priority: `?at=lat,lng` (map pick) > `?town=slug` > GPS (if user chose it) > Colombo. GPS never enters the URL; rounded fix is kept in `sessionStorage` only (for the detail page). The explainer choice is remembered in `localStorage` (`tuktrail.locationChoice`).
+- URL state (nuqs): `cat`, `month` (bool → current Colombo month), `q` (debounced 300 ms), `r`, `town`, `at`.
+- Mobile: full-screen map + non-modal `BottomSheet` (peek/half/full) holding search, chips and list — all controls in the thumb zone. Desktop ≥64rem: same DOM becomes a 26rem side panel.
+- Sync: `useSelection` store. Card tap = select + map `flyTo` (+ Directions / View details actions). Marker tap = select + scroll card into view (pages in more results if needed).
 
 ## Design tokens — "Roadside Ceylon"
 
@@ -117,6 +138,13 @@ Source of truth: `src/shared/design/tokens.ts`, mirrored in `src/app/globals.css
 - **Text search (`q`) is island-wide, distance-sorted** (radius ignored) — refinement from Phase 0; owner may veto.
 - **`upload_intents` + `upload_submissions` tables** — submissions may only reference keys issued to that user; submissions drive rate limiting.
 - **Design page** `/design` is on in dev, off in production unless `ENABLE_DESIGN_PAGE=true` (evaluated at build).
+- **MapLibre + OpenFreeMap instead of Google Maps** (owner decision, Phase 2) — no API key, no billing, open data. Directions stay a plain Google Maps URL deep link (`src/shared/lib/directions.ts`).
+- **`@vis.gl/react-maplibre` over a hand-rolled wrapper** — it's react-map-gl v8's MapLibre-only package: declarative `<Source>/<Layer>/<Marker>`, maintained, small. Hidden behind our own `PlacesMapProps` contract (`src/components/map/types.ts`) so the provider can be swapped by writing one component.
+- **Clustering = MapLibre GeoJSON clustering; markers = HTML `<button>`s** rendered from `querySourceFeatures` — keyboard/screen-reader reachable, styled with tokens. The selected place is always drawn, even if its neighbours are clustered.
+- **Themed styles are generated, self-hosted JSON** (`public/map/tuktrail-{light,dark}.json`) derived from OpenFreeMap's _positron_ (one layer-id table for both themes). OpenFreeMap requires custom styles to be self-hosted; tiles/glyphs/sprites still come from OpenFreeMap. Style switches with the app's resolved colour scheme.
+- **Attribution**: MapLibre `AttributionControl` in compact mode — visible on load, collapses to an (i) after the first pan, which the OSM attribution guidelines allow. Restyled for legibility in both themes and lifted above the bottom sheet.
+- **Camera padding = overlay insets** (`map.setPadding`), so `fitBounds`/`flyTo` centre on the _visible_ map above the sheet.
+- **Fuzzy search threshold 0.62** (`word_similarity`) — keeps typos ("sigirya", "mirisa"), drops noise ("fort" ≠ "Forest").
 
 ## Gotchas
 
@@ -125,6 +153,10 @@ Source of truth: `src/shared/design/tokens.ts`, mirrored in `src/app/globals.css
 - **Cache Components**: read `cookies()/headers()/searchParams` or uncached DB data only inside `<Suspense>` (or `'use cache'` helpers). No `export const runtime/dynamic/revalidate`. `generateStaticParams` must return ≥1 entry. Route handlers call `connection()` (done in `apiHandler`).
 - Inline `<script>`s (theme init) go through the client `InlineScript` helper, else React warns on client renders.
 - `[locale]/[...rest]` catch-all (with `instant = false`) routes unknown URLs to the designed `[locale]/not-found`.
+- **MapLibre worker**: MapLibre 6 loads its worker via `new URL(<variable>, import.meta.url)`, which bundlers can't follow. `scripts/sync-map-worker.mjs` copies it to `public/map/` (gitignored) before `dev`/`build`; the map calls `setWorkerUrl`. If the map is blank with "Worker failed to load", run `node scripts/sync-map-worker.mjs`.
+- `maplibre-gl` CSS overrides live in `globals.css` under `.tt-map` (attribution, 44px zoom buttons, dark icon inversion).
+- In dev the map instance is exposed as `window.__ttMap` (e2e tests and debugging only).
+- **E2E**: each test renders WebGL in software; keep `workers: 2`, 60 s timeouts, and the warm-up `globalSetup` (cold `next dev` route compiles exceed expect timeouts).
 - `pnpm` 10 blocks build scripts; `esbuild` is allowed in `pnpm-workspace.yaml`.
 - **Windows dev**: if Turbopack panics with `0xc0000142`, stale dev processes are holding resources — kill node processes for this project and delete `.next/dev`.
 - Postgres from compose is on host port **5544** (5432 is taken by a local install).

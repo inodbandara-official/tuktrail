@@ -192,6 +192,60 @@
   }
 }
 
+/* ── MapLibre controls, restyled to the design system ─────────────────── */
+.tt-map .maplibregl-ctrl-bottom-right,
+.tt-map .maplibregl-ctrl-bottom-left {
+  bottom: var(--map-inset-bottom, 0px);
+  transition: bottom 200ms ease;
+}
+/* Attribution (OSM/OpenFreeMap terms): legible in both themes. MapLibre's own compact styles
+   hard-code white, so match their specificity. */
+.tt-map .maplibregl-ctrl.maplibregl-ctrl-attrib,
+.tt-map .maplibregl-ctrl.maplibregl-ctrl-attrib.maplibregl-compact,
+.tt-map .maplibregl-ctrl.maplibregl-ctrl-attrib.maplibregl-compact-show {
+  background-color: color-mix(in oklab, var(--surface) 92%, transparent);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+.tt-map .maplibregl-ctrl-attrib a {
+  color: var(--ink);
+  text-decoration: underline;
+}
+.tt-map .maplibregl-ctrl-attrib-button {
+  background-color: transparent;
+  filter: var(--map-icon-filter, none);
+}
+.tt-map .maplibregl-ctrl-group {
+  background: var(--surface);
+  border: 2px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  box-shadow: none;
+  overflow: hidden;
+}
+.tt-map .maplibregl-ctrl-group button {
+  width: 44px;
+  height: 44px;
+}
+.tt-map .maplibregl-ctrl-group button + button {
+  border-top: 2px solid var(--line);
+}
+.tt-map .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  filter: var(--map-icon-filter, none);
+}
+:root[data-theme="dark"] .tt-map {
+  --map-icon-filter: invert(1) brightness(0.9);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .tt-map {
+    --map-icon-filter: invert(1) brightness(0.9);
+  }
+}
+.tt-map .maplibregl-marker:has([aria-pressed="true"]) {
+  z-index: 5;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

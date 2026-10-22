@@ -39,11 +39,6 @@
     "disaster": "Disaster Management Centre",
     "call": "Call {number}"
   },
-  "home": {
-    "title": "Nearby places",
-    "comingSoon": "The nearby map and list arrive in the next build phase.",
-    "viewDesign": "View the design system"
-  },
   "states": {
     "emptyTitle": "Nothing here yet",
     "emptyBody": "Try a wider radius or a different category.",
@@ -161,5 +156,75 @@
     "minimum": "Minimum",
     "pairOn": "{fg} on {bg}",
     "contrastTable": "Contrast ratios for every token pair"
+  },
+  "location": {
+    "explainerTitle": "See what's around you",
+    "explainerBody": "TukTrail sorts temples, beaches, waterfalls and more by how far they are from you.",
+    "explainerPrivacy": "We only use your location to sort places. It's rounded to about 100 m, sent with each search, and never stored or logged.",
+    "useMyLocation": "Use my location",
+    "chooseTown": "Choose a town",
+    "pickOnMap": "Pick a spot on the map",
+    "startInColombo": "Start in Colombo",
+    "locating": "Finding your location…",
+    "deniedTitle": "Location is turned off",
+    "deniedBody": "No problem. Choose a town or tap the map instead. You can allow location later in your browser settings.",
+    "unavailableBody": "We couldn't get your location. Choose a town or tap the map instead.",
+    "nearYou": "Near you",
+    "nearTown": "Near {town}",
+    "nearPin": "Near your map pin",
+    "nearDefault": "Colombo (default)",
+    "change": "Change location",
+    "pickerTitle": "Where are you?",
+    "townSearchLabel": "Search towns",
+    "townSearchPlaceholder": "Kandy, Ella, Galle…",
+    "popularTowns": "Popular bases",
+    "noTowns": "No towns match “{q}”.",
+    "pickModeHint": "Tap the map to set your location",
+    "cancel": "Cancel"
+  },
+  "filters": {
+    "searchLabel": "Search places or districts",
+    "searchPlaceholder": "Search places or districts",
+    "clearSearch": "Clear search",
+    "categories": "Categories",
+    "goodThisMonth": "Good in {month}",
+    "radius": "Distance",
+    "radiusOption": "Within {km} km",
+    "clearFilters": "Clear filters",
+    "searchingIsland": "Searching all of Sri Lanka"
+  },
+  "nearby": {
+    "title": "Places near you",
+    "count": "{count, plural, =0 {No places} one {# place} other {# places}} within {km} km",
+    "countSearch": "{count, plural, =0 {No matches} one {# match} other {# matches}} for “{q}”",
+    "listLabel": "Places list",
+    "loadMore": "Show more places",
+    "loadingMore": "Loading more…",
+    "endOfList": "That's everything within {km} km.",
+    "emptyRadiusTitle": "Nothing within {km} km",
+    "emptyRadiusBody": "Try a wider distance or fewer filters.",
+    "widenTo": "Search within {km} km",
+    "emptySearchTitle": "No matches for “{q}”",
+    "emptySearchBody": "Check the spelling, or try a district name like “Kandy”.",
+    "viewDetails": "View details",
+    "selected": "Selected",
+    "sheetHandle": "Resize list",
+    "sheetExpand": "Show more of the list",
+    "sheetCollapse": "Show more of the map",
+    "showMap": "Map",
+    "showList": "List"
+  },
+  "map": {
+    "label": "Map of places",
+    "loading": "Loading map…",
+    "unavailableTitle": "Map unavailable",
+    "unavailableBody": "The list still works. Check your connection to load the map.",
+    "cluster": "{count} places here. Zoom in",
+    "marker": "{name}, {category}",
+    "yourLocation": "Your location",
+    "searchArea": "Search radius",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "recenter": "Back to my area"
   }
 }
