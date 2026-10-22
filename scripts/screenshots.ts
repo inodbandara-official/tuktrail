@@ -6,6 +6,7 @@
 //   --wait 1500        extra settle time in ms after load/clicks (map tiles, animations)
 //   --name suffix      file name suffix (default: derived from clicks)
 //   --offline          go offline after loading (captures offline states)
+//   --fix 7.29,80.63   preset the session's rounded GPS fix (distance on detail pages)
 //   --viewport-only    capture the viewport instead of the full page
 // Requires the app running at BASE_URL (default http://localhost:3000).
 import { mkdir } from "node:fs/promises";
@@ -70,6 +71,13 @@ try {
         locale: "en-GB",
         timezoneId: "Asia/Colombo",
       });
+      if (opts.fix) {
+        const [lat, lng] = String(opts.fix).split(",").map(Number);
+        await context.addInitScript((p) => sessionStorage.setItem("tuktrail.lastFix", JSON.stringify(p)), {
+          lat,
+          lng,
+        });
+      }
       if (choice) {
         await context.addInitScript((c) => localStorage.setItem("tuktrail.locationChoice", c), choice);
       }

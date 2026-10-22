@@ -10,6 +10,9 @@ const WARM = [
   "/api/v1/places/points?lat=7.29&lng=80.63",
   "/api/v1/towns?q=ell",
   "/api/v1/towns/ella",
+  "/places/sigiriya",
+  "/places/sigiriya/opengraph-image",
+  "/api/v1/places/sigiriya",
   "/map/tuktrail-light.json",
 ];
 

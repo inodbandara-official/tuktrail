@@ -16,14 +16,20 @@ test.describe("location", () => {
     await expect(page.getByRole("heading", { name: "See what's around you" })).toBeVisible();
     await page.getByRole("button", { name: "Use my location" }).click();
 
-    await expect(firstCardTitle(page)).toHaveText("Temple of the Sacred Tooth Relic");
+    // Nearest first: the top card is under 1 km from central Kandy, and the temple is listed.
+    await expect(page.locator("article").first().getByRole("img", { name: / m$/ })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Temple of the Sacred Tooth Relic", exact: true }),
+    ).toBeVisible();
     await expect(page.getByRole("button", { name: /^Near you/ })).toBeVisible();
     await expect(markers(page).first()).toBeAttached({ timeout: 20_000 });
     expect(page.url()).not.toMatch(/7\.29|80\.63|lat=|lng=/);
 
     // Remembered: the explainer doesn't come back.
     await page.reload();
-    await expect(firstCardTitle(page)).toHaveText("Temple of the Sacred Tooth Relic");
+    await expect(
+      page.getByRole("button", { name: "Temple of the Sacred Tooth Relic", exact: true }),
+    ).toBeVisible();
     await expect(page.getByRole("heading", { name: "See what's around you" })).toHaveCount(0);
     await ctx.close();
   });
@@ -91,7 +97,7 @@ test.describe("filters and search", () => {
     await expect(page.getByText(/within 5 km/).first()).toBeVisible();
     await page.getByRole("searchbox", { name: "Search places or districts" }).fill("galle");
     await expect(page).toHaveURL(/q=galle/);
-    await expect(page.getByText(/2 matches for “galle”/)).toBeVisible();
+    await expect(page.getByText(/\d+ matches for “galle”/)).toBeVisible();
     await expect(page.locator("article h3", { hasText: "Galle Fort" })).toBeVisible();
   });
 

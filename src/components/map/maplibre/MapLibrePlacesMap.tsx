@@ -69,6 +69,7 @@ export default function MapLibrePlacesMap({
   onPick,
   colorScheme,
   insets,
+  frameMaxZoom = 14,
   onStatusChange,
 }: PlacesMapProps) {
   const t = useTranslations("map");
@@ -171,7 +172,13 @@ export default function MapLibrePlacesMap({
     if (origin && radiusKm) box = circleBbox(origin.point, radiusKm * 1000);
     else box = pointsBbox(points.map((p) => ({ lat: p.lat, lng: p.lng })));
     if (!box) return;
-    map.fitBounds(box, { padding: 28, maxZoom: 14, duration: prefersReducedMotion() ? 0 : 700 });
+    const duration = prefersReducedMotion() ? 0 : 700;
+    // A single point has zero-area bounds, which fitBounds can't frame: centre on it instead.
+    if (box[0] === box[2] && box[1] === box[3]) {
+      map.easeTo({ center: [box[0], box[1]], zoom: frameMaxZoom, duration });
+    } else {
+      map.fitBounds(box, { padding: 28, maxZoom: frameMaxZoom, duration });
+    }
     // Only re-frame when the query changes, not on every inset tweak.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [frameKey, loaded]);
@@ -193,8 +200,19 @@ export default function MapLibrePlacesMap({
 
   // Re-apply insets so the visible centre tracks the bottom sheet (keeps the same centre in view).
   useEffect(() => {
-    if (!loaded) return;
-    mapRef.current?.getMap().easeTo({ padding, duration: prefersReducedMotion() ? 0 : 250 });
+    const map = mapRef.current?.getMap();
+    if (!loaded || !map) return;
+    // Only animate on a real change; an unconditional easeTo would cancel framing animations.
+    const cur = map.getPadding();
+    if (
+      cur.top === padding.top &&
+      cur.bottom === padding.bottom &&
+      cur.left === padding.left &&
+      cur.right === padding.right
+    ) {
+      return;
+    }
+    map.easeTo({ padding, duration: prefersReducedMotion() ? 0 : 250 });
   }, [padding, loaded]);
 
   const handleClick = useCallback(

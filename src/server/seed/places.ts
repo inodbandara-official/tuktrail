@@ -19,6 +19,7 @@ export interface SeedPlace {
   fullDescription: string;
   dressCode?: string;
   safetyNotes?: string;
+  howToGetThere?: string;
   checkCoords?: boolean;
 }
 

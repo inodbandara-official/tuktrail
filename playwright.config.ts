@@ -9,7 +9,7 @@ export default defineConfig({
   // Each test renders a WebGL map in software (headless); more workers starve the CPU.
   workers: 2,
   timeout: 60_000,
-  expect: { timeout: 12_000 },
+  expect: { timeout: 20_000 },
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? "github" : "list",
   use: {

@@ -89,6 +89,7 @@ scripts/                  screenshots, a11y audit, contrast
 | `GET /api/v1/places/nearby?lat&lng&radius_km&category&month&q&cursor&limit` | `ST_DWithin` + `ST_Distance`, keyset cursor `(distance,id)` bound to a query fingerprint; `total` on page 1; `no-store` |
 | `GET /api/v1/places/points?…same filters`                                   | lightweight markers (≤500) for map clustering; `no-store`                                                               |
 | `GET /api/v1/towns?q` / `GET /api/v1/towns/:slug`                           | manual location fallback (trigram search, hubs when empty)                                                              |
+| `GET /api/v1/places/:slug`                                                  | full detail DTO: approved images (hero first), practical fields, derived `nearestTown`                                  |
 
 `category` accepts CSV or repeated params. Coordinates are rounded to 3 dp in the schema itself.
 
@@ -124,6 +125,15 @@ Source of truth: `src/shared/design/tokens.ts`, mirrored in `src/app/globals.css
 - **Borders over shadows** (glare kills subtle elevation). Category = colour tone **+ unique icon** (never colour alone); temple and waterfall icons are custom SVG.
 - **Signature**: `KmPost` distance marker, styled after roadside kilometre posts. Placeholder art generated per category (`src/server/seed/placeholders.ts`). Images dim slightly in dark mode.
 
+### Place detail page (`/places/[slug]`)
+
+- Static shell (header + back link) + `<Suspense>` content, so list → detail navigations are instant. Data via `getCachedPlace()` (`'use cache'`, `cacheLife("hours")`, tags `places` / `place:<slug>` for admin revalidation). `generateStaticParams` prerenders all published slugs (falls back to a 404 sentinel if the DB is unreachable at build).
+- Unknown slugs: `notFound()` inside the stream → 200 + designed not-found + `noindex` (Next's documented behaviour for streamed 404s).
+- Practical info shows only filled fields. Fees/hours are never seeded; an explicit "only listed once confirmed" row explains the gap. Nearest town + distance is computed from the towns table (KNN `<->`).
+- Distance from the user is computed in the browser from the session's rounded GPS fix — the detail page never sends location anywhere.
+- Gallery: native `<dialog>` lightbox (Esc, arrows, swipe). Read more toggles server-rendered markdown (SEO-visible). Share: Web Share API → copy-link fallback.
+- SEO: metadata + canonical, `opengraph-image.tsx` (typographic brand card; passes `locale` explicitly because root params aren't available in route handlers), `TouristAttraction` JSON-LD with only facts we hold.
+
 ## Key decisions (and why)
 
 - **Better Auth instead of Auth.js** — Auth.js v5 never went stable and is maintenance-only; Better Auth has a Drizzle adapter, magic link, and bearer/Expo support for the mobile app. (Approved by owner, Phase 0.)
@@ -143,7 +153,7 @@ Source of truth: `src/shared/design/tokens.ts`, mirrored in `src/app/globals.css
 - **Clustering = MapLibre GeoJSON clustering; markers = HTML `<button>`s** rendered from `querySourceFeatures` — keyboard/screen-reader reachable, styled with tokens. The selected place is always drawn, even if its neighbours are clustered.
 - **Themed styles are generated, self-hosted JSON** (`public/map/tuktrail-{light,dark}.json`) derived from OpenFreeMap's _positron_ (one layer-id table for both themes). OpenFreeMap requires custom styles to be self-hosted; tiles/glyphs/sprites still come from OpenFreeMap. Style switches with the app's resolved colour scheme.
 - **Attribution**: MapLibre `AttributionControl` in compact mode — visible on load, collapses to an (i) after the first pan, which the OSM attribution guidelines allow. Restyled for legibility in both themes and lifted above the bottom sheet.
-- **Camera padding = overlay insets** (`map.setPadding`), so `fitBounds`/`flyTo` centre on the _visible_ map above the sheet.
+- **Camera padding = overlay insets** (`map.setPadding`), so `fitBounds`/`flyTo` centre on the _visible_ map above the sheet. Padding is only re-animated when it actually changes — an unconditional `easeTo` cancels in-flight framing. Single points are framed with `easeTo` (zero-area bounds can\'t be fitted); `frameMaxZoom` controls how close.
 - **Fuzzy search threshold 0.62** (`word_similarity`) — keeps typos ("sigirya", "mirisa"), drops noise ("fort" ≠ "Forest").
 
 ## Gotchas
@@ -165,4 +175,4 @@ Source of truth: `src/shared/design/tokens.ts`, mirrored in `src/app/globals.css
 
 ## Seed data notes
 
-36 places across all 9 provinces (`src/server/seed/places.ts`), original descriptions, fees/hours null, all unverified. Entries flagged `checkCoords: true` have approximate coordinates — spot-check before launch. 60 towns (25 district capitals + traveller hubs). Admin user from `SEED_ADMIN_EMAIL`.
+93 places across all 9 provinces: `src/server/seed/places.ts` (original 36) + `places-more.ts` (57 added in Phase 3 around Anuradhapura, Colombo, Jaffna, Galle, Matara, Ella/Badulla, Kandy, Nuwara Eliya, Hambantota, Polonnaruwa, Dambulla, Trincomalee), combined in `all-places.ts`. "How to get there" notes for the original 36 live in `access.ts`. Original descriptions; fees/hours/phone numbers never seeded; all unverified. Entries flagged `checkCoords: true` have approximate coordinates — spot-check before launch (the detail-page mini map makes errors easy to see). `pnpm db:seed --force` re-applies seed text to existing places. 60 towns (25 district capitals + traveller hubs). Admin user from `SEED_ADMIN_EMAIL`.

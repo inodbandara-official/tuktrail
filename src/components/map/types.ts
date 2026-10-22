@@ -29,5 +29,7 @@ export interface PlacesMapProps {
   colorScheme: "light" | "dark";
   /** Screen area covered by overlays (e.g. the mobile bottom sheet), in px. */
   insets: MapInsets;
+  /** Closest zoom used when framing results (default 14). Lower = more context. */
+  frameMaxZoom?: number;
   onStatusChange?: (status: "loading" | "ready" | "error") => void;
 }

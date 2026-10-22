@@ -101,6 +101,8 @@ export const placeDetailSchema = placeSummarySchema.extend({
   howToGetThere: z.string().nullable(),
   safetyNotes: z.string().nullable(),
   images: z.array(placeImageSchema),
+  /** Closest town from our towns table, straight-line distance. Derived, never hand-entered. */
+  nearestTown: z.object({ slug: z.string(), name: z.string(), distanceM: z.int() }).nullable(),
   updatedAt: z.iso.datetime(),
 });
 export type PlaceDetail = z.infer<typeof placeDetailSchema>;

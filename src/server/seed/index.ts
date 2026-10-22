@@ -10,7 +10,7 @@ import { IMMUTABLE_CACHE, processImage } from "../lib/images";
 import { createStorage } from "../storage/storage";
 import { env } from "../env";
 import { placeholderSvg } from "./placeholders";
-import { SEED_PLACES } from "./places";
+import { ALL_SEED_PLACES as SEED_PLACES } from "./all-places";
 import { SEED_TOWNS } from "./towns";
 
 const force = process.argv.includes("--force");
@@ -63,7 +63,7 @@ async function seedPlaces() {
       openingHours: null,
       feeForeignLkr: null,
       feeLocalLkr: null,
-      howToGetThere: null,
+      howToGetThere: p.howToGetThere ?? null,
       isVerified: false,
       status: "published" as const,
     };
