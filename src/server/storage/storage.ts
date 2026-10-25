@@ -1,4 +1,11 @@
-import { DeleteObjectsCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  CopyObjectCommand,
+  DeleteObjectsCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { env, type ServerEnv } from "../env";
 
@@ -18,6 +25,17 @@ export interface Storage {
   /** Presigned PUT. Content-Type and Content-Length are signed, so the client cannot change them. */
   presignPut(key: string, contentType: string, contentLength: number, expiresInS: number): Promise<string>;
   publicUrl(key: string): string;
+  /** Short-lived read URL for a private object (owner/admin previews of pending photos). */
+  presignGet(bucket: BucketKind, key: string, expiresInS: number): Promise<string>;
+  /** Size in bytes, or null if the object doesn't exist. */
+  size(bucket: BucketKind, key: string): Promise<number | null>;
+  copy(
+    from: BucketKind,
+    fromKey: string,
+    to: BucketKind,
+    toKey: string,
+    cacheControl?: string,
+  ): Promise<void>;
 }
 
 export function createS3Client(e: ServerEnv): S3Client {
@@ -76,6 +94,29 @@ export function createStorage(e: ServerEnv = env()): Storage {
         expiresIn: expiresInS,
         signableHeaders: new Set(["content-type", "content-length"]),
       });
+    },
+    async presignGet(bucket, key, expiresInS) {
+      return getSignedUrl(client, new GetObjectCommand({ Bucket: bucketName(bucket), Key: key }), {
+        expiresIn: expiresInS,
+      });
+    },
+    async size(bucket, key) {
+      try {
+        const res = await client.send(new HeadObjectCommand({ Bucket: bucketName(bucket), Key: key }));
+        return res.ContentLength ?? null;
+      } catch {
+        return null;
+      }
+    },
+    async copy(from, fromKey, to, toKey, cacheControl) {
+      await client.send(
+        new CopyObjectCommand({
+          Bucket: bucketName(to),
+          Key: toKey,
+          CopySource: `${bucketName(from)}/${fromKey.split("/").map(encodeURIComponent).join("/")}`,
+          ...(cacheControl ? { CacheControl: cacheControl, MetadataDirective: "COPY" } : {}),
+        }),
+      );
     },
     publicUrl(key) {
       return `${base}/${key.split("/").map(encodeURIComponent).join("/")}`;

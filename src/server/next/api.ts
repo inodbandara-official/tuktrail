@@ -4,12 +4,15 @@ import type { ApiError } from "@/shared/schemas/common";
 import { AppError } from "../services/errors";
 import type { Ctx } from "../services/context";
 import { createCtx } from "./ctx";
+import { getSessionUser } from "./session";
 
 type Handler<P> = (args: { req: NextRequest; ctx: Ctx; params: P }) => Promise<Response | unknown>;
 
 interface Options {
   /** Responses that depend on a user's coordinates must never be cached by browsers or CDNs. */
   noStore?: boolean;
+  /** Require a signed-in user ("user") or an admin ("admin"). Responses are then private/no-store. */
+  auth?: "user" | "admin";
 }
 
 function errorResponse(status: number, body: ApiError) {
@@ -25,10 +28,20 @@ export function apiHandler<P = Record<string, never>>(handler: Handler<P>, opts:
     await connection();
     try {
       const params = route?.params ? await route.params : ({} as P);
-      const result = await handler({ req, ctx: createCtx(), params });
+      let actor = null;
+      if (opts.auth) {
+        actor = await getSessionUser(req.headers);
+        if (!actor) throw new AppError("UNAUTHENTICATED", "Please sign in first.");
+        if (opts.auth === "admin" && actor.role !== "admin") throw new AppError("FORBIDDEN", "Admins only.");
+      }
+      const result = await handler({
+        req,
+        ctx: createCtx(actor ? { id: actor.id, role: actor.role } : null),
+        params,
+      });
       if (result instanceof Response) return result;
       return NextResponse.json(result, {
-        headers: opts.noStore ? { "Cache-Control": "no-store, private" } : undefined,
+        headers: opts.noStore || opts.auth ? { "Cache-Control": "no-store, private" } : undefined,
       });
     } catch (err) {
       if (err instanceof z.ZodError) {

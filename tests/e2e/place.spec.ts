@@ -82,7 +82,8 @@ test.describe("place detail", () => {
       Object.defineProperty(navigator, "share", { value: undefined, configurable: true });
     });
     await page.goto("/places/mirissa-beach");
-    await page.getByRole("button", { name: "Share" }).click();
+    await page.waitForLoadState("networkidle"); // the share button needs hydrated JS
+    await page.getByRole("button", { name: "Share", exact: true }).click();
     await expect(page.getByRole("button", { name: "Link copied" })).toBeVisible();
     expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/\/places\/mirissa-beach$/);
   });

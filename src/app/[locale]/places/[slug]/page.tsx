@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getFormatter, getTranslations } from "next-intl/server";
 import Markdown from "react-markdown";
-import { ArrowLeft, CircleAlert, ExternalLink, Navigation } from "lucide-react";
+import { ArrowLeft, Camera, CircleAlert, ExternalLink, Navigation } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { getCachedPlace, getCachedSlugs } from "@/server/next/places";
 import { googleMapsDirectionsUrl } from "@/shared/lib/directions";
@@ -12,7 +12,7 @@ import { AppHeader } from "@/components/shell/AppHeader";
 import { CategoryIcon } from "@/components/places/CategoryIcon";
 import { Badge } from "@/components/ui/Badge";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { ButtonLink } from "@/components/ui/Button";
+import { ButtonLink, buttonClasses } from "@/components/ui/Button";
 import { cx } from "@/components/ui/cx";
 import { DistanceFromYou } from "@/features/place/DistanceFromYou";
 import { Gallery } from "@/features/place/Gallery";
@@ -192,6 +192,20 @@ async function PlaceContent({ params }: { params: Promise<{ slug: string }> }) {
             )}
           </section>
 
+          <section
+            aria-labelledby="share-title"
+            className="mt-10 flex flex-col items-start gap-3 rounded-xl border-2 border-line bg-surface p-5"
+          >
+            <h2 id="share-title" className="flex items-center gap-2 text-xl">
+              <Camera aria-hidden className="size-6 text-laterite" />
+              {t("upload.cta")}
+            </h2>
+            <p className="text-ink-muted">{t("upload.ctaBody")}</p>
+            <Link href={`/places/${place.slug}/photos/new`} className={buttonClasses("secondary")}>
+              {t("upload.ctaButton")}
+            </Link>
+          </section>
+
           {!place.isVerified && (
             <p className="mt-8 flex gap-2.5 rounded-md bg-warn-soft p-4 text-sm text-warn">
               <CircleAlert aria-hidden className="mt-0.5 size-5 shrink-0" />
@@ -218,9 +232,7 @@ async function PlaceContent({ params }: { params: Promise<{ slug: string }> }) {
               lng: place.location.lng,
             }}
           />
-          <p className="tabular mt-2 text-sm text-ink-muted">
-            {coords}
-          </p>
+          <p className="tabular mt-2 text-sm text-ink-muted">{coords}</p>
           <p className="mt-6 text-xs text-ink-muted">
             {t("place.lastUpdated", {
               date: format.dateTime(new Date(place.updatedAt), { dateStyle: "medium" }),

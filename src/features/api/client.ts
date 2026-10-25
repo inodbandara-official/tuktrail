@@ -6,6 +6,7 @@ export class ApiClientError extends Error {
     readonly status: number,
     readonly code: string,
     message: string,
+    readonly details?: unknown,
   ) {
     super(message);
     this.name = "ApiClientError";
@@ -46,7 +47,37 @@ export async function apiGet<T extends z.ZodType>(
       res.status,
       parsed.success ? parsed.data.error.code : "HTTP_ERROR",
       parsed.success ? parsed.data.error.message : res.statusText,
+      parsed.success ? parsed.data.error.details : undefined,
     );
   }
   return schema.parse(body);
+}
+
+/** JSON POST/DELETE to /api/v1. `schema` null for 204 responses. */
+export async function apiSend<T extends z.ZodType>(
+  method: "POST" | "DELETE",
+  path: string,
+  body: unknown,
+  schema: T | null,
+): Promise<z.infer<T>> {
+  const res = await fetch(`/api/v1${path}`, {
+    method,
+    headers: {
+      Accept: "application/json",
+      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+    cache: "no-store",
+  });
+  const json: unknown = res.status === 204 ? null : await res.json().catch(() => null);
+  if (!res.ok) {
+    const parsed = apiErrorSchema.safeParse(json);
+    throw new ApiClientError(
+      res.status,
+      parsed.success ? parsed.data.error.code : "HTTP_ERROR",
+      parsed.success ? parsed.data.error.message : res.statusText,
+      parsed.success ? parsed.data.error.details : undefined,
+    );
+  }
+  return (schema ? schema.parse(json) : null) as z.infer<T>;
 }

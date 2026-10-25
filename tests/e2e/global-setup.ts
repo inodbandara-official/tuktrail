@@ -14,6 +14,10 @@ const WARM = [
   "/places/sigiriya/opengraph-image",
   "/api/v1/places/sigiriya",
   "/map/tuktrail-light.json",
+  "/sign-in",
+  "/places/sigiriya/photos/new",
+  "/me/uploads",
+  "/api/auth/get-session",
 ];
 
 export default async function globalSetup() {

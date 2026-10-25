@@ -7,7 +7,8 @@ Location-based tourist guide for Sri Lanka. Next.js web app now; a React Native 
 ## Working rules (from the product owner)
 
 - Build **phase by phase**. End of every phase: run app → `pnpm screenshots` (390×844 + 1440×900, light + dark, every touched screen) → review PNGs, fix, re-shoot → `pnpm a11y` + polish pass → `pnpm typecheck && pnpm lint && pnpm test` → git commit → summary + screenshots → **stop and wait for go-ahead**.
-- **Never invent factual place data** (fees, opening hours, phone numbers, how-to-get-there). Leave null, `is_verified = false`.
+- **Never invent factual place data** (fees, opening hours, phone numbers). Leave null, `is_verified = false`. General route notes ("how to get there") and descriptions were added at the owner's request (Phase 3) as unverified guidance — never fares, timetables or contacts.
+- **Images**: real photos only from Wikimedia Commons under free licences (CC0/BY/BY-SA/FAL/PD), reviewed by eye, self-hosted, credited with author + licence + source link. Never hotlink; never NC/ND. (Owner request before Phase 4; replaces the original placeholder-only rule.)
 - All UI strings in `messages/*.json` (lint-enforced via `react/jsx-no-literals`).
 - Secrets only in `.env`; keep `.env.example` complete.
 - Use current stable library versions; check official docs (Next ships its docs in `node_modules/next/dist/docs/`).
@@ -83,13 +84,17 @@ scripts/                  screenshots, a11y audit, contrast
 
 ### API (implemented so far)
 
-| Endpoint                                                                    | Notes                                                                                                                   |
-| --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/v1/health`                                                        | DB + PostGIS check                                                                                                      |
-| `GET /api/v1/places/nearby?lat&lng&radius_km&category&month&q&cursor&limit` | `ST_DWithin` + `ST_Distance`, keyset cursor `(distance,id)` bound to a query fingerprint; `total` on page 1; `no-store` |
-| `GET /api/v1/places/points?…same filters`                                   | lightweight markers (≤500) for map clustering; `no-store`                                                               |
-| `GET /api/v1/towns?q` / `GET /api/v1/towns/:slug`                           | manual location fallback (trigram search, hubs when empty)                                                              |
-| `GET /api/v1/places/:slug`                                                  | full detail DTO: approved images (hero first), practical fields, derived `nearestTown`                                  |
+| Endpoint                                                                    | Notes                                                                                                                    |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `GET /api/v1/health`                                                        | DB + PostGIS check                                                                                                       |
+| `GET /api/v1/places/nearby?lat&lng&radius_km&category&month&q&cursor&limit` | `ST_DWithin` + `ST_Distance`, keyset cursor `(distance,id)` bound to a query fingerprint; `total` on page 1; `no-store`  |
+| `GET /api/v1/places/points?…same filters`                                   | lightweight markers (≤500) for map clustering; `no-store`                                                                |
+| `GET /api/v1/towns?q` / `GET /api/v1/towns/:slug`                           | manual location fallback (trigram search, hubs when empty)                                                               |
+| `GET /api/v1/places/:slug`                                                  | full detail DTO: approved images (hero first), practical fields, derived `nearestTown`                                   |
+| `POST /api/v1/uploads/presign` (user)                                       | `{placeId, files[{contentType,size}]}` → presigned PUT URLs into the **private** bucket (10 min); ≤20 open intents/user  |
+| `POST /api/v1/submissions` (user)                                           | `{placeId, intentIds, device?, caption?}` → verify visit → strip EXIF → pending; 422 `OUTSIDE_VISIT_RADIUS` with details |
+| `GET /api/v1/me/uploads` · `DELETE /api/v1/me/uploads/:id` (user)           | own photos (any status; pending/rejected via short-lived signed URLs) · withdraw a pending photo                         |
+| `/api/auth/*`                                                               | Better Auth: magic link, Google (when configured), session; cookie or `Authorization: Bearer`                            |
 
 `category` accepts CSV or repeated params. Coordinates are rounded to 3 dp in the schema itself.
 
@@ -134,6 +139,22 @@ Source of truth: `src/shared/design/tokens.ts`, mirrored in `src/app/globals.css
 - Gallery: native `<dialog>` lightbox (Esc, arrows, swipe). Read more toggles server-rendered markdown (SEO-visible). Share: Web Share API → copy-link fallback.
 - SEO: metadata + canonical, `opengraph-image.tsx` (typographic brand card; passes `locale` explicitly because root params aren't available in route handlers), `TouristAttraction` JSON-LD with only facts we hold.
 
+### Auth & uploads (Phase 4)
+
+- Better Auth (`src/server/auth/auth.ts`): magic link via SMTP (Mailpit locally), Google only when `GOOGLE_CLIENT_ID/SECRET` are set, `bearer` plugin for the mobile app, `role` additional field (`input: false`). Rate limiting on in production only (Better Auth's default) so e2e can sign in repeatedly.
+- `apiHandler(fn, { auth: "user" | "admin" })` resolves the session (cookie or bearer) into `ctx.actor`; 401/403 otherwise; responses become `no-store, private`.
+- Visit verification (`services/verification.ts`): accept if the **device** location is within `visit_radius_m` (+ up to 150 m GPS-accuracy allowance) OR **every** photo's EXIF GPS is within it. Otherwise 422 with the closest distance and which files failed.
+- Pipeline: presigned PUT → server re-checks real size + real format (sharp, not the claimed type) → EXIF read → sharp strips metadata and renders sizes into the **private** bucket (`pending/…`) → `place_images` pending + `upload_submissions` row → raw upload deleted, intents consumed. Approved photos are copied to the public bucket in Phase 5. Capture point stored rounded to 4 dp, cleared on moderation.
+- Daily submission limit from `UPLOAD_SUBMISSIONS_PER_DAY` (rolling 24 h, counted in Postgres).
+- UI: `/sign-in` (uncontrolled email field so pre-hydration typing isn't lost), header `AccountButton` (Suspense-wrapped; header is `z-40` so its menu sits above page overlays), `/places/[slug]/photos/new` (`SignInGate` + `UploadForm`: previews, XHR progress, device-location switch, friendly radius errors scrolled into view), `/me/uploads`.
+
+### Place photos (Wikimedia Commons)
+
+- `pnpm photos:fetch [slug…]` → `src/server/seed/photos.json` (committed metadata) + `.cache/place-photos/` (gitignored). Preference: Wikidata P18 → Wikipedia lead → Commons category → Commons search; free licences only; prefers ≥1200 px with a named author.
+- **Every chosen photo is reviewed by eye** (contact sheets). Wrong/unrepresentative files go into `photo-rejections.ts` and are never picked again; `photos.json` is the reviewed source of truth — re-fetching requires another review.
+- The seed processes them like uploads (EXIF stripped, AVIF/WebP sizes, LQIP), stores credit (`attribution`, `license`, `license_url`, `source_url`), makes them the hero, retires placeholders and removes previously seeded photos that are no longer chosen. Credits show under the hero and in the lightbox (`PhotoCredit`).
+- `coord-overrides.ts`: 22 point-like places moved to Wikidata coordinates (only when Wikidata is more precise than an arc-minute and 300 m–3 km from ours; wrong-item matches excluded).
+
 ## Key decisions (and why)
 
 - **Better Auth instead of Auth.js** — Auth.js v5 never went stable and is maintenance-only; Better Auth has a Drizzle adapter, magic link, and bearer/Expo support for the mobile app. (Approved by owner, Phase 0.)
@@ -175,4 +196,4 @@ Source of truth: `src/shared/design/tokens.ts`, mirrored in `src/app/globals.css
 
 ## Seed data notes
 
-93 places across all 9 provinces: `src/server/seed/places.ts` (original 36) + `places-more.ts` (57 added in Phase 3 around Anuradhapura, Colombo, Jaffna, Galle, Matara, Ella/Badulla, Kandy, Nuwara Eliya, Hambantota, Polonnaruwa, Dambulla, Trincomalee), combined in `all-places.ts`. "How to get there" notes for the original 36 live in `access.ts`. Original descriptions; fees/hours/phone numbers never seeded; all unverified. Entries flagged `checkCoords: true` have approximate coordinates — spot-check before launch (the detail-page mini map makes errors easy to see). `pnpm db:seed --force` re-applies seed text to existing places. 60 towns (25 district capitals + traveller hubs). Admin user from `SEED_ADMIN_EMAIL`.
+116 places across all 9 provinces (23 more in `places-extra.ts`, added before Phase 4); 111 have a reviewed Commons photo, 5 keep a placeholder. Earlier text: 93 places across all 9 provinces: `src/server/seed/places.ts` (original 36) + `places-more.ts` (57 added in Phase 3 around Anuradhapura, Colombo, Jaffna, Galle, Matara, Ella/Badulla, Kandy, Nuwara Eliya, Hambantota, Polonnaruwa, Dambulla, Trincomalee), combined in `all-places.ts`. "How to get there" notes for the original 36 live in `access.ts`. Original descriptions; fees/hours/phone numbers never seeded; all unverified. Entries flagged `checkCoords: true` have approximate coordinates — spot-check before launch (the detail-page mini map makes errors easy to see). `pnpm db:seed --force` re-applies seed text to existing places. 60 towns (25 district capitals + traveller hubs). Admin user from `SEED_ADMIN_EMAIL`.
