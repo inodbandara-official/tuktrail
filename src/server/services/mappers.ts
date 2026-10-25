@@ -25,6 +25,8 @@ export function toImageDto(row: ImageRow, storage: Storage): PlaceImage {
     source: row.source,
     attribution: row.attribution,
     license: row.license,
+    sourceUrl: row.sourceUrl,
+    licenseUrl: row.licenseUrl,
   };
 }
 

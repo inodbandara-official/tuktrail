@@ -92,6 +92,8 @@ describe("toPlaceSummary", () => {
     source: "user" as const,
     attribution: null,
     license: null,
+    sourceUrl: null,
+    licenseUrl: null,
     uploadedBy: "user-1",
     status: "approved" as const,
     rejectionReason: null,

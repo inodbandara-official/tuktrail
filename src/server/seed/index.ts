@@ -1,7 +1,7 @@
 // Idempotent seed: towns, places, placeholder images, admin user.
 // Re-running never overwrites places edited by an admin unless --force is passed.
 import { randomUUID } from "node:crypto";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNotNull, ne, sql } from "drizzle-orm";
 import sharp from "sharp";
 import { provinceOf } from "@/shared/constants/geography";
 import { createDb } from "../db/client";
@@ -10,6 +10,9 @@ import { IMMUTABLE_CACHE, processImage } from "../lib/images";
 import { createStorage } from "../storage/storage";
 import { env } from "../env";
 import { placeholderSvg } from "./placeholders";
+import { loadPhotos } from "./photos";
+import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { ALL_SEED_PLACES as SEED_PLACES } from "./all-places";
 import { SEED_TOWNS } from "./towns";
 
@@ -109,7 +112,7 @@ async function seedPlaceholderImages() {
         lqip: processed.lqip,
         altText: `Illustrated placeholder artwork for ${p.name}`,
         source: "official",
-        attribution: "TukTrail placeholder illustration",
+        attribution: PLACEHOLDER_ATTRIBUTION,
         license: "CC0-1.0",
         status: "approved",
         moderatedAt: new Date(),
@@ -119,6 +122,104 @@ async function seedPlaceholderImages() {
     created++;
   }
   console.log(`✓ placeholder images (${created} new)`);
+}
+
+const PLACEHOLDER_ATTRIBUTION = "TukTrail placeholder illustration";
+
+/**
+ * Real photos from Wikimedia Commons (see photos.json + scripts/fetch-place-photos.ts).
+ * Each is processed like any upload (EXIF stripped, resized), self-hosted, credited, and
+ * becomes the hero; the generated placeholder is then removed.
+ */
+async function seedPhotos() {
+  const photos = loadPhotos();
+  const all = await db.select({ id: places.id, slug: places.slug, name: places.name }).from(places);
+  let added = 0;
+  for (const p of all) {
+    const photo = photos[p.slug];
+    // Drop previously seeded Commons photos that are no longer the chosen one (re-reviewed/rejected).
+    const stale = await db
+      .select({ id: placeImages.id, variants: placeImages.variants })
+      .from(placeImages)
+      .where(
+        and(
+          eq(placeImages.placeId, p.id),
+          eq(placeImages.source, "official"),
+          isNotNull(placeImages.sourceUrl),
+          photo ? ne(placeImages.sourceUrl, photo.sourceUrl) : sql`true`,
+        ),
+      );
+    for (const o of stale) {
+      await storage.remove(
+        "public",
+        Object.values(o.variants).flatMap((v) => Object.values(v)),
+      );
+      await db
+        .update(places)
+        .set({ heroImageId: null })
+        .where(and(eq(places.id, p.id), eq(places.heroImageId, o.id)));
+      await db.delete(placeImages).where(eq(placeImages.id, o.id));
+    }
+    if (!photo || photo.rejected) continue;
+
+    let [row] = await db
+      .select({ id: placeImages.id })
+      .from(placeImages)
+      .where(and(eq(placeImages.placeId, p.id), eq(placeImages.sourceUrl, photo.sourceUrl)))
+      .limit(1);
+
+    if (!row) {
+      const cached = `.cache/place-photos/${p.slug}.img`;
+      let input: Buffer;
+      if (existsSync(cached)) input = await readFile(cached);
+      else {
+        const res = await fetch(photo.thumbUrl, { headers: { "User-Agent": "TukTrail/0.1 (seed script)" } });
+        if (!res.ok) {
+          console.warn(`! ${p.slug}: photo download failed (${res.status}); keeping placeholder`);
+          continue;
+        }
+        input = Buffer.from(await res.arrayBuffer());
+      }
+      const imageId = randomUUID();
+      const processed = await processImage(input, `places/${p.id}/${imageId}`);
+      await Promise.all(
+        processed.files.map((f) => storage.put("public", f.key, f.body, f.contentType, IMMUTABLE_CACHE)),
+      );
+      await db.insert(placeImages).values({
+        id: imageId,
+        placeId: p.id,
+        variants: processed.variants,
+        width: processed.width,
+        height: processed.height,
+        lqip: processed.lqip,
+        altText: `Photo of ${p.name}`,
+        source: "official",
+        attribution: `${photo.author} / Wikimedia Commons`,
+        license: photo.license,
+        licenseUrl: photo.licenseUrl,
+        sourceUrl: photo.sourceUrl,
+        status: "approved",
+        moderatedAt: new Date(),
+      });
+      row = { id: imageId };
+      added++;
+    }
+
+    await db.update(places).set({ heroImageId: row.id }).where(eq(places.id, p.id));
+    // Retire the generated placeholder for this place (rows + stored files).
+    const old = await db
+      .select({ id: placeImages.id, variants: placeImages.variants })
+      .from(placeImages)
+      .where(and(eq(placeImages.placeId, p.id), eq(placeImages.attribution, PLACEHOLDER_ATTRIBUTION)));
+    for (const o of old) {
+      await storage.remove(
+        "public",
+        Object.values(o.variants).flatMap((v) => Object.values(v)),
+      );
+      await db.delete(placeImages).where(eq(placeImages.id, o.id));
+    }
+  }
+  console.log(`✓ photos (${added} new)`);
 }
 
 async function seedAdmin() {
@@ -143,6 +244,7 @@ async function seedAdmin() {
 try {
   await seedTowns();
   await seedPlaces();
+  await seedPhotos();
   await seedPlaceholderImages();
   await seedAdmin();
   const [{ count }] = (

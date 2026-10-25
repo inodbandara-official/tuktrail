@@ -71,6 +71,8 @@ export const placeImageSchema = z.object({
   source: z.enum(IMAGE_SOURCES),
   attribution: z.string().nullable(),
   license: z.string().nullable(),
+  sourceUrl: z.url().nullable(),
+  licenseUrl: z.url().nullable(),
 });
 export type PlaceImage = z.infer<typeof placeImageSchema>;
 

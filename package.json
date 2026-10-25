@@ -27,7 +27,8 @@
     "storage:init": "tsx --env-file=.env src/server/storage/init.ts",
     "contrast": "tsx scripts/contrast.ts",
     "bootstrap": "pnpm services:up && pnpm storage:init && pnpm db:migrate && pnpm db:seed",
-    "map:styles": "tsx scripts/build-map-styles.ts"
+    "map:styles": "tsx scripts/build-map-styles.ts",
+    "photos:fetch": "tsx scripts/fetch-place-photos.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1154.0",

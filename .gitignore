@@ -49,3 +49,6 @@ next-env.d.ts
 
 # copied from node_modules by scripts/sync-map-worker.mjs
 /public/map/maplibre-gl-worker.mjs
+
+# downloaded Wikimedia Commons originals (metadata lives in src/server/seed/photos.json)
+/.cache/

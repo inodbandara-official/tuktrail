@@ -145,6 +145,9 @@ export const placeImages = pgTable(
     source: imageSource().notNull(),
     attribution: text(),
     license: text(),
+    // Where the file came from (e.g. its Wikimedia Commons page) and the licence deed URL.
+    sourceUrl: text(),
+    licenseUrl: text(),
     uploadedBy: text().references(() => user.id, { onDelete: "set null" }),
     status: imageStatus().notNull().default("pending"),
     rejectionReason: text(),

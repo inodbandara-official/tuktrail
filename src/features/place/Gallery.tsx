@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { PlaceImage } from "@/shared/schemas/place";
 import { Picture } from "@/components/ui/Picture";
 import { cx } from "@/components/ui/cx";
+import { PhotoCredit } from "./PhotoCredit";
 
 /** Hero photo + thumbnail strip + native <dialog> lightbox (keyboard, swipe, focus handling). */
 export function Gallery({ images }: { images: PlaceImage[] }) {
@@ -57,6 +58,7 @@ export function Gallery({ images }: { images: PlaceImage[] }) {
           {t("photos", { count })}
         </span>
       </button>
+      <PhotoCredit image={hero} className="mt-1.5 px-4 lg:px-0" />
 
       {count > 1 && (
         <ul aria-label={t("gallery")} className="mt-2 flex gap-2 overflow-x-auto px-4 pb-1 lg:px-0">
@@ -139,11 +141,7 @@ export function Gallery({ images }: { images: PlaceImage[] }) {
             className={cx("p-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-center text-sm text-white/80")}
           >
             <p>{current.alt}</p>
-            {current.attribution && (
-              <p className="mt-1 text-xs text-white/70">
-                {t("photoCredit", { credit: current.attribution })}
-              </p>
-            )}
+            <PhotoCredit image={current} tone="dark" className="mt-1" />
           </div>
         </div>
       </dialog>
