@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { and, eq, isNotNull, ne, sql } from "drizzle-orm";
 import sharp from "sharp";
 import { provinceOf } from "@/shared/constants/geography";
+import { PLACEHOLDER_ATTRIBUTION } from "@/shared/constants/places";
 import { createDb } from "../db/client";
 import { placeImages, places, towns, user } from "../db/schema";
 import { IMMUTABLE_CACHE, processImage } from "../lib/images";
@@ -123,8 +124,6 @@ async function seedPlaceholderImages() {
   }
   console.log(`✓ placeholder images (${created} new)`);
 }
-
-const PLACEHOLDER_ATTRIBUTION = "TukTrail placeholder illustration";
 
 /**
  * Real photos from Wikimedia Commons (see photos.json + scripts/fetch-place-photos.ts).

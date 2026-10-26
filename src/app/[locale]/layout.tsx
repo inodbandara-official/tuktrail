@@ -1,12 +1,15 @@
 import type { Metadata, Viewport } from "next";
 import { NextIntlClientProvider } from "next-intl";
-import { getLocale, getTranslations } from "next-intl/server";
+import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import { routing } from "@/i18n/routing";
 import { Providers } from "@/components/providers/Providers";
 import { InlineScript } from "@/components/theme/InlineScript";
 import { THEME_INIT_SCRIPT } from "@/components/theme/theme";
 import { bodyFont, headingFont } from "../fonts";
 import "../globals.css";
+
+/** Message namespaces only the admin area needs; kept out of every public page's payload. */
+const ADMIN_ONLY = new Set(["admin"]);
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
@@ -35,6 +38,9 @@ export const viewport: Viewport = {
 export default async function LocaleLayout({ children }: LayoutProps<"/[locale]">) {
   const locale = await getLocale();
   const t = await getTranslations("common");
+  const publicMessages = Object.fromEntries(
+    Object.entries(await getMessages()).filter(([ns]) => !ADMIN_ONLY.has(ns)),
+  );
 
   return (
     <html lang={locale} suppressHydrationWarning className={`${headingFont.variable} ${bodyFont.variable}`}>
@@ -48,7 +54,7 @@ export default async function LocaleLayout({ children }: LayoutProps<"/[locale]"
         >
           {t("skipToContent")}
         </a>
-        <NextIntlClientProvider>
+        <NextIntlClientProvider messages={publicMessages}>
           <Providers>{children}</Providers>
         </NextIntlClientProvider>
       </body>

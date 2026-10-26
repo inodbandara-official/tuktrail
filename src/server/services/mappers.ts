@@ -1,4 +1,9 @@
-import { IMAGE_FORMATS, IMAGE_WIDTHS } from "@/shared/constants/places";
+import {
+  IMAGE_FORMATS,
+  IMAGE_WIDTHS,
+  REJECTION_REASONS,
+  type RejectionReason,
+} from "@/shared/constants/places";
 import type { PlaceImage, PlaceSummary } from "@/shared/schemas/place";
 import type { placeImages, places } from "../db/schema";
 import type { Storage } from "../storage/storage";
@@ -50,4 +55,10 @@ export function toPlaceSummary(
     heroImage: hero && hero.status === "approved" ? toImageDto(hero, storage) : null,
     ...(distanceM === undefined ? {} : { distanceM: Math.round(distanceM) }),
   };
+}
+
+/** Stored rejection reason → known code (older free-text values map to "other"). */
+export function asRejectionReason(v: string | null): RejectionReason | null {
+  if (v === null) return null;
+  return (REJECTION_REASONS as readonly string[]).includes(v) ? (v as RejectionReason) : "other";
 }

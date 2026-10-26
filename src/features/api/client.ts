@@ -53,20 +53,22 @@ export async function apiGet<T extends z.ZodType>(
   return schema.parse(body);
 }
 
-/** JSON POST/DELETE to /api/v1. `schema` null for 204 responses. */
+/** JSON POST/PUT/DELETE to /api/v1. `schema` null for 204 responses. */
 export async function apiSend<T extends z.ZodType>(
-  method: "POST" | "DELETE",
+  method: "POST" | "PUT" | "DELETE",
   path: string,
   body: unknown,
   schema: T | null,
 ): Promise<z.infer<T>> {
+  const isForm = body instanceof FormData;
   const res = await fetch(`/api/v1${path}`, {
     method,
     headers: {
       Accept: "application/json",
-      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+      // FormData sets its own multipart boundary.
+      ...(body === undefined || isForm ? {} : { "Content-Type": "application/json" }),
     },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
     cache: "no-store",
   });
   const json: unknown = res.status === 204 ? null : await res.json().catch(() => null);

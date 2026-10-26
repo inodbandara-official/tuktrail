@@ -15,6 +15,7 @@ import { placeImages, places, uploadIntents, uploadSubmissions, type ImageVarian
 import { processImage } from "../lib/images";
 import type { Ctx } from "./context";
 import { AppError } from "./errors";
+import { asRejectionReason } from "./mappers";
 import { verifyVisit } from "./verification";
 
 export interface UploadLimits {
@@ -246,12 +247,12 @@ export async function submitUploads(
   return { submissionId, verification: { method: check.method, distanceM: check.distanceM }, images: mine };
 }
 
-/** Pending/rejected photos live in the private bucket; approved ones are public. */
+/** Pending photos live in the private bucket, approved ones are public; rejected files are deleted. */
 async function thumbUrl(ctx: Ctx, status: string, variants: ImageVariants) {
   const key = variants.webp[400];
-  return status === "approved"
-    ? ctx.storage.publicUrl(key)
-    : ctx.storage.presignGet("private", key, PREVIEW_TTL_S);
+  if (status === "approved") return ctx.storage.publicUrl(key);
+  if (status === "pending") return ctx.storage.presignGet("private", key, PREVIEW_TTL_S);
+  return null;
 }
 
 export async function listMyUploads(ctx: Ctx, onlyIds?: string[]): Promise<MyUpload[]> {
@@ -267,7 +268,8 @@ export async function listMyUploads(ctx: Ctx, onlyIds?: string[]): Promise<MyUpl
     rows.map(async ({ image, place }) => ({
       id: image.id,
       status: image.status,
-      rejectionReason: image.rejectionReason,
+      rejectionReason: asRejectionReason(image.rejectionReason),
+      rejectionNote: image.rejectionNote,
       caption: image.altText,
       thumbUrl: await thumbUrl(ctx, image.status, image.variants),
       createdAt: image.createdAt.toISOString(),

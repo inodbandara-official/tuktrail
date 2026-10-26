@@ -1,55 +1,5 @@
-import { randomUUID } from "node:crypto";
-import { expect, test, type Page } from "@playwright/test";
-import sharp from "sharp";
-
-const MAILPIT = process.env.MAILPIT_URL ?? "http://localhost:8025";
-
-async function jpeg(gps?: { lat: number; lng: number }) {
-  let img = sharp({ create: { width: 1200, height: 900, channels: 3, background: "#5a7" } }).jpeg();
-  if (gps) {
-    const dms = (x: number) => {
-      const d = Math.floor(x);
-      const m = Math.floor((x - d) * 60);
-      const s = Math.round(((x - d) * 60 - m) * 6000);
-      return `${d}/1 ${m}/1 ${s}/100`;
-    };
-    img = img.withExif({
-      IFD3: {
-        GPSLatitudeRef: "N",
-        GPSLatitude: dms(gps.lat),
-        GPSLongitudeRef: "E",
-        GPSLongitude: dms(gps.lng),
-      },
-    });
-  }
-  return img.toBuffer();
-}
-
-/** Signs in through the real UI and the magic link delivered to Mailpit. */
-async function signIn(page: Page, next: string) {
-  const email = `e2e-${randomUUID().slice(0, 8)}@example.com`;
-  await page.goto(`/sign-in?next=${encodeURIComponent(next)}`);
-  await page.getByLabel("Email address").fill(email);
-  await page.getByRole("button", { name: "Email me a sign-in link" }).click();
-  await expect(page.getByRole("heading", { name: "Check your email" })).toBeVisible();
-
-  let link = "";
-  await expect
-    .poll(async () => {
-      const list = await (
-        await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`)
-      ).json();
-      const id = list.messages?.[0]?.ID;
-      if (!id) return "";
-      const msg = await (await fetch(`${MAILPIT}/api/v1/message/${id}`)).json();
-      link = (msg.Text.match(/https?:\/\/\S+/) ?? [""])[0];
-      return link;
-    })
-    .toMatch(/magic-link\/verify/);
-  await page.goto(link);
-  await expect(page).toHaveURL(new RegExp(`${next.replace(/\//g, "\\/")}$`));
-  return email;
-}
+import { expect, test } from "@playwright/test";
+import { jpeg, signIn } from "./helpers";
 
 test.describe("sign-in and photo uploads", () => {
   test("upload page asks signed-out visitors to sign in", async ({ page }) => {
@@ -91,6 +41,11 @@ test.describe("sign-in and photo uploads", () => {
     // Not public yet.
     const detail = await (await page.request.get("/api/v1/places/sigiriya")).json();
     expect(JSON.stringify(detail)).not.toContain("Lion's paws");
+
+    // Withdraw it again so test photos don't pile up in the review queue.
+    const mine = await (await page.request.get("/api/v1/me/uploads")).json();
+    for (const u of mine.items)
+      expect((await page.request.delete(`/api/v1/me/uploads/${u.id}`)).status()).toBe(204);
   });
 
   test("photos taken elsewhere get a friendly explanation", async ({ page }) => {

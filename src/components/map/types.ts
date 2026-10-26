@@ -33,3 +33,18 @@ export interface PlacesMapProps {
   frameMaxZoom?: number;
   onStatusChange?: (status: "loading" | "ready" | "error") => void;
 }
+
+/** Small single-place map (admin): a pin with its visit radius, optionally draggable. */
+export interface SpotMapProps {
+  center: LatLng;
+  radiusM: number;
+  /** A second point to compare with, e.g. where a visitor photo was taken. */
+  compare?: LatLng | null;
+  /** Lets the pin be dragged, or moved by tapping the map. */
+  editable?: boolean;
+  onChange?: (point: LatLng) => void;
+  /** When it changes the map re-frames the pin, circle and comparison point. */
+  frameKey: string;
+  colorScheme: "light" | "dark";
+  labels: { region: string; pin: string; compare?: string };
+}

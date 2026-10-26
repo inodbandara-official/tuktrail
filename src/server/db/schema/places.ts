@@ -150,7 +150,9 @@ export const placeImages = pgTable(
     licenseUrl: text(),
     uploadedBy: text().references(() => user.id, { onDelete: "set null" }),
     status: imageStatus().notNull().default("pending"),
+    /** A REJECTION_REASONS code; `rejectionNote` adds the moderator's own words, shown to the uploader. */
     rejectionReason: text(),
+    rejectionNote: text(),
     // PRIVATE: where the photo was taken / uploaded from. Never exposed by any public DTO.
     // Cleared once an admin has moderated the image.
     captureLat: doublePrecision(),

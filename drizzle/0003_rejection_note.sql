@@ -1,0 +1,1 @@
+ALTER TABLE "place_images" ADD COLUMN "rejection_note" text;

@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { IMAGE_STATUSES, UPLOAD_CONTENT_TYPES, VERIFICATION_METHODS } from "../constants/places";
+import {
+  IMAGE_STATUSES,
+  REJECTION_REASONS,
+  UPLOAD_CONTENT_TYPES,
+  VERIFICATION_METHODS,
+} from "../constants/places";
 import { latitudeSchema, longitudeSchema } from "./common";
 
 /** Defaults; the server can lower them via env (UPLOAD_MAX_FILES / UPLOAD_MAX_BYTES). */
@@ -49,13 +54,16 @@ export const submissionRequestSchema = z.object({
 });
 export type SubmissionRequest = z.infer<typeof submissionRequestSchema>;
 
-/** One of the signed-in user's own uploads (any status). URLs are short-lived for pending/rejected. */
+/** One of the signed-in user's own uploads (any status). URLs are short-lived for pending photos. */
 export const myUploadSchema = z.object({
   id: z.uuid(),
   status: z.enum(IMAGE_STATUSES),
-  rejectionReason: z.string().nullable(),
+  rejectionReason: z.enum(REJECTION_REASONS).nullable(),
+  /** The moderator's own words, if they added any. */
+  rejectionNote: z.string().nullable(),
   caption: z.string(),
-  thumbUrl: z.url(),
+  /** Null once a rejected photo's files have been deleted. */
+  thumbUrl: z.url().nullable(),
   createdAt: z.iso.datetime(),
   place: z.object({ slug: z.string(), name: z.string() }),
 });

@@ -2,7 +2,8 @@
 //  - axe-core (WCAG 2.2 A/AA rules)
 //  - tap targets smaller than 44×44 px (inline links inside running text excluded)
 //  - keyboard walk: every Tab stop must show a visible focus indicator
-// Usage: pnpm a11y [--choice manual] / /design      (app must be running at BASE_URL)
+// Usage: pnpm a11y [--choice manual] [--storage state.json] / /design   (app must be running at BASE_URL)
+//   --storage: a Playwright storageState file, to audit signed-in pages (e.g. /admin).
 import AxeBuilder from "@axe-core/playwright";
 import { chromium, type Page } from "@playwright/test";
 
@@ -11,6 +12,8 @@ const routes = argv.filter((a) => a.startsWith("/"));
 // --choice manual|gps presets the remembered location choice (skips the first-visit explainer).
 const choiceIdx = argv.indexOf("--choice");
 const choice = choiceIdx >= 0 ? argv[choiceIdx + 1] : undefined;
+const storageIdx = argv.indexOf("--storage");
+const storageState = storageIdx >= 0 ? argv[storageIdx + 1] : undefined;
 if (routes.length === 0) routes.push("/");
 const BASE_URL = process.env.BASE_URL ?? "http://localhost:3000";
 
@@ -91,7 +94,7 @@ const browser = await chromium.launch();
 try {
   for (const [vpName, vp] of Object.entries(VIEWPORTS)) {
     for (const scheme of ["light", "dark"] as const) {
-      const context = await browser.newContext({ ...vp, colorScheme: scheme });
+      const context = await browser.newContext({ ...vp, colorScheme: scheme, storageState });
       if (choice)
         await context.addInitScript((c) => localStorage.setItem("tuktrail.locationChoice", c), choice);
       const page = await context.newPage();

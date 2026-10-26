@@ -97,6 +97,7 @@ describe("toPlaceSummary", () => {
     uploadedBy: "user-1",
     status: "approved" as const,
     rejectionReason: null,
+    rejectionNote: null,
     captureLat: 6.8401,
     captureLng: 81.0502,
     moderatedBy: "admin-1",

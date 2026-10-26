@@ -45,3 +45,18 @@ export type ImageFormat = (typeof IMAGE_FORMATS)[number];
 
 export const UPLOAD_CONTENT_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
 export type UploadContentType = (typeof UPLOAD_CONTENT_TYPES)[number];
+
+/** Why a moderator turned a visitor photo down. Shown to the uploader (translated). */
+export const REJECTION_REASONS = [
+  "off_topic",
+  "poor_quality",
+  "people_privacy",
+  "duplicate",
+  "not_own_photo",
+  "inappropriate",
+  "other",
+] as const;
+export type RejectionReason = (typeof REJECTION_REASONS)[number];
+
+/** Attribution stored on generated category placeholders (replaced as soon as a real photo exists). */
+export const PLACEHOLDER_ATTRIBUTION = "TukTrail placeholder illustration";

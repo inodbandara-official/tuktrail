@@ -11,7 +11,7 @@ type Handler<P> = (args: { req: NextRequest; ctx: Ctx; params: P }) => Promise<R
 interface Options {
   /** Responses that depend on a user's coordinates must never be cached by browsers or CDNs. */
   noStore?: boolean;
-  /** Require a signed-in user ("user") or an admin ("admin"). Responses are then private/no-store. */
+  /** Require a signed-in user ("user", else 401) or an admin ("admin", else 404). Responses are then private/no-store. */
   auth?: "user" | "admin";
 }
 
@@ -31,8 +31,9 @@ export function apiHandler<P = Record<string, never>>(handler: Handler<P>, opts:
       let actor = null;
       if (opts.auth) {
         actor = await getSessionUser(req.headers);
+        // The admin API answers 404 to everyone else, so it doesn't advertise itself.
+        if (opts.auth === "admin" && actor?.role !== "admin") throw new AppError("NOT_FOUND", "Not found");
         if (!actor) throw new AppError("UNAUTHENTICATED", "Please sign in first.");
-        if (opts.auth === "admin" && actor.role !== "admin") throw new AppError("FORBIDDEN", "Admins only.");
       }
       const result = await handler({
         req,

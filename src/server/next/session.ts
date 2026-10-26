@@ -1,4 +1,7 @@
 // Next-only glue: resolve the signed-in user (cookie or bearer token) into a service Actor.
+import { headers } from "next/headers";
+import { notFound } from "next/navigation";
+import { cache } from "react";
 import { getAuth } from "../auth/auth";
 import type { Actor } from "../services/context";
 import type { UserRole } from "@/shared/constants/places";
@@ -21,3 +24,13 @@ export async function getSessionUser(headers: Headers): Promise<SessionUser | nu
     image: u.image ?? null,
   };
 }
+
+/**
+ * For admin pages (call inside <Suspense>): the signed-in admin, or a plain 404 for everyone
+ * else, so the admin area doesn't advertise itself. Cached per request.
+ */
+export const requireAdminPage = cache(async (): Promise<SessionUser> => {
+  const user = await getSessionUser(await headers());
+  if (user?.role !== "admin") notFound();
+  return user;
+});

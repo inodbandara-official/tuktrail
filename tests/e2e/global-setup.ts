@@ -18,6 +18,11 @@ const WARM = [
   "/places/sigiriya/photos/new",
   "/me/uploads",
   "/api/auth/get-session",
+  // Admin pages answer "not found" to anonymous visitors, but this still compiles them.
+  "/admin",
+  "/admin/moderation",
+  "/admin/places",
+  "/admin/places/new",
 ];
 
 export default async function globalSetup() {

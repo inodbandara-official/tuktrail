@@ -1,6 +1,6 @@
 "use client";
 
-import { Images, LogOut, UserRound } from "lucide-react";
+import { Images, LogOut, ShieldCheck, UserRound } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState } from "react";
 import { Link, usePathname } from "@/i18n/navigation";
@@ -45,6 +45,8 @@ export function AccountButton() {
   }
 
   const name = data.user.name || data.user.email;
+  // `role` is a Better Auth additional field (server-assigned, read-only for users).
+  const isAdmin = (data.user as { role?: string }).role === "admin";
   const initial = (name.trim()[0] ?? "?").toUpperCase();
 
   return (
@@ -81,6 +83,16 @@ export function AccountButton() {
             <Images aria-hidden className="size-5" />
             {t("myUploads")}
           </Link>
+          {isAdmin && (
+            <Link
+              href="/admin"
+              onClick={() => setOpen(false)}
+              className="flex min-h-12 items-center gap-3 px-4 font-semibold hover:bg-surface-sunk"
+            >
+              <ShieldCheck aria-hidden className="size-5" />
+              {t("admin")}
+            </Link>
+          )}
           <button
             type="button"
             onClick={async () => {

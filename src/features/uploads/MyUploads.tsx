@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Clock, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, ImageOff, XCircle } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 import { myUploadsResponseSchema, type MyUpload } from "@/shared/schemas/uploads";
@@ -85,13 +85,20 @@ export function MyUploads() {
           const { tone, Icon } = STATUS[u.status];
           return (
             <li key={u.id} className="overflow-hidden rounded-lg border-2 border-line bg-surface">
-              {/* eslint-disable-next-line @next/next/no-img-element -- presigned/private URLs, pre-sized variants */}
-              <img
-                src={u.thumbUrl}
-                alt={u.caption}
-                loading="lazy"
-                className="aspect-[4/3] w-full bg-surface-sunk object-cover"
-              />
+              {u.thumbUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element -- presigned/private URLs, pre-sized variants
+                <img
+                  src={u.thumbUrl}
+                  alt={u.caption}
+                  loading="lazy"
+                  className="aspect-[4/3] w-full bg-surface-sunk object-cover"
+                />
+              ) : (
+                <div className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 bg-surface-sunk p-4 text-center text-sm text-ink-muted">
+                  <ImageOff aria-hidden className="size-8" />
+                  {t("removedFile")}
+                </div>
+              )}
               <div className="flex flex-col gap-2 p-4">
                 <Badge tone={tone} icon={<Icon aria-hidden className="size-3.5" />} className="self-start">
                   {t(u.status)}
@@ -106,9 +113,12 @@ export function MyUploads() {
                   {t("sharedOn", { date: format.dateTime(new Date(u.createdAt), { dateStyle: "medium" }) })}
                 </p>
                 {u.status === "rejected" && u.rejectionReason && (
-                  <p className="rounded-md bg-surface-sunk p-2 text-sm">
-                    {t("reason", { reason: u.rejectionReason })}
-                  </p>
+                  <div className="rounded-md bg-surface-sunk p-3 text-sm">
+                    <p>{t(`reasons.${u.rejectionReason}`)}</p>
+                    {u.rejectionNote && (
+                      <p className="mt-1 text-ink-muted">{t("note", { note: u.rejectionNote })}</p>
+                    )}
+                  </div>
                 )}
                 {u.status === "pending" && (
                   <Button
